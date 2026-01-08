@@ -1,5 +1,5 @@
 import { Library, Bookmark, BarChart3, Search } from "lucide-react";
-import { FeaturesEntry } from "@/lib/contentstack/types";
+import { FeaturesComponent } from "@/lib/contentstack/types";
 import { LucideIcon } from "lucide-react";
 
 // Icon mapping for features
@@ -11,7 +11,7 @@ const featureIcons: Record<string, LucideIcon> = {
 };
 
 interface FeaturesBlockProps {
-  data: FeaturesEntry;
+  data: FeaturesComponent;
 }
 
 export function FeaturesBlock({ data }: FeaturesBlockProps) {
@@ -28,8 +28,8 @@ export function FeaturesBlock({ data }: FeaturesBlockProps) {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {data.boxes.map((feature, index) => {
-            const IconComponent = featureIcons[feature.topic] || Library;
+          {data.box.map((feature, index) => {
+            const IconComponent = featureIcons[feature.text] || Library;
             return (
               <div
                 key={feature._metadata?.uid || index}
@@ -40,10 +40,10 @@ export function FeaturesBlock({ data }: FeaturesBlockProps) {
                   <IconComponent className="w-7 h-7 text-copper" />
                 </div>
                 <h3 className="font-display text-xl font-semibold text-ink mb-3">
-                  {feature.topic}
+                  {feature.text}
                 </h3>
                 <p className="text-walnut leading-relaxed">
-                  {feature.content.trim()}
+                  {feature.description.trim()}
                 </p>
               </div>
             );

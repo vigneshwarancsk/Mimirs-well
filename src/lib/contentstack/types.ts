@@ -53,86 +53,95 @@ export interface HeroEntry {
   stonks: Stonk[];
 }
 
-// Features Entry type
+// Features Component (modular block)
 export interface FeatureBox {
-  topic: string;
-  content: string;
+  text: string;
+  description: string;
   _metadata: {
     uid: string;
   };
 }
 
-export interface FeaturesEntry {
-  uid: string;
-  title: string;
+export interface FeaturesComponent {
   heading: string;
   sub_heading: string;
-  boxes: FeatureBox[];
+  box: FeatureBox[];
+  _metadata: {
+    uid: string;
+  };
 }
 
-// Player/Reader Preview Entry type
-export interface PlayerEntry {
-  uid: string;
-  title: string;
+// Demo/Player Component (modular block)
+export interface DemoComponent {
   heading: string;
   content: string;
-  demo: string;
-  points: string[];
+  list: string[];
+  demo_text: string;
+  _metadata: {
+    uid: string;
+  };
 }
 
-// Testimonials Entry type
+// Testimonials Component (modular block)
 export interface TestimonialItem {
-  quote: string;
-  author: string;
-  desig: string;
+  review: string;
+  user: string;
+  designation: string;
   _metadata: {
     uid: string;
   };
 }
 
-export interface TestimonialsEntry {
-  uid: string;
-  title: string;
+export interface TestimonialsComponent {
+  heading: string;
+  description: string;
+  tests: TestimonialItem[];
+  _metadata: {
+    uid: string;
+  };
+}
+
+// Pre-Footer Component (modular block)
+export interface PreFooterComponent {
   heading: string;
   sub_heading: string;
-  group: TestimonialItem[];
+  signup_button_text: string;
+  _metadata: {
+    uid: string;
+  };
 }
 
-// Pre-Footer/CTA Entry type
-export interface PreFooterEntry {
-  uid: string;
-  title: string;
-  heading: string;
-  content: string;
-}
+// Section types - each section can be one of these components
+export type SectionComponent =
+  | { type: "features"; data: FeaturesComponent }
+  | { type: "demo"; data: DemoComponent }
+  | { type: "testemonials"; data: TestimonialsComponent }
+  | { type: "pre_footer"; data: PreFooterComponent };
 
-// Block Reference type (used in modular blocks)
+// Block Reference type (used for hero reference)
 export interface BlockReference {
   uid: string;
   _content_type_uid: string;
 }
 
-// Landing Page Entry type
+// Landing Page Entry type with new structure
 export interface LandingPageEntry {
   uid: string;
   title: string;
   url: string;
   hero: BlockReference[];
-  blocks: BlockReference[];
+  sections: Array<{
+    features?: FeaturesComponent;
+    demo?: DemoComponent;
+    testemonials?: TestimonialsComponent;
+    pre_footer?: PreFooterComponent;
+  }>;
 }
 
-// Resolved Block - a block with its fetched data
-export type ResolvedBlock =
-  | { type: "hero"; data: HeroEntry }
-  | { type: "features"; data: FeaturesEntry }
-  | { type: "player"; data: PlayerEntry }
-  | { type: "testamonials"; data: TestimonialsEntry }
-  | { type: "pre_footer"; data: PreFooterEntry };
-
-// Combined Landing Page Data with dynamic blocks
+// Combined Landing Page Data with dynamic sections
 export interface LandingPageData {
   hero: HeroEntry | null;
-  blocks: ResolvedBlock[];
+  sections: SectionComponent[];
 }
 
 // Add more content types as you integrate them

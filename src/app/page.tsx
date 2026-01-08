@@ -3,14 +3,7 @@ import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getLandingPageData } from "@/lib/contentstack";
 import { BlockRenderer, HeroBlock } from "@/components/blocks";
-import {
-  HeroEntry,
-  FeaturesEntry,
-  PlayerEntry,
-  TestimonialsEntry,
-  PreFooterEntry,
-  ResolvedBlock,
-} from "@/lib/contentstack/types";
+import { HeroEntry, SectionComponent } from "@/lib/contentstack/types";
 
 // Fallback data when Contentstack is not configured
 const fallbackHero: HeroEntry = {
@@ -83,103 +76,8 @@ const fallbackHero: HeroEntry = {
   ],
 };
 
-const fallbackBlocks: ResolvedBlock[] = [
-  {
-    type: "features",
-    data: {
-      uid: "fallback-features",
-      title: "Features",
-      heading: "Everything You Need to Read",
-      sub_heading:
-        "Designed for readers, by readers. Every feature crafted to enhance your reading experience.",
-      boxes: [
-        {
-          topic: "Vast Library",
-          content:
-            "Access thousands of books across every genre imaginable. From timeless classics to contemporary bestsellers.",
-          _metadata: { uid: "f1" },
-        },
-        {
-          topic: "Personal Collection",
-          content:
-            "Build your own digital library. Save books, create reading lists, and organize your literary journey.",
-          _metadata: { uid: "f2" },
-        },
-        {
-          topic: "Track Progress",
-          content:
-            "Never lose your place. Our intelligent tracking remembers exactly where you left off in every book.",
-          _metadata: { uid: "f3" },
-        },
-        {
-          topic: "Smart Search",
-          content:
-            "Find your next read effortlessly. Search by title, author, genre, or let our recommendations guide you.",
-          _metadata: { uid: "f4" },
-        },
-      ],
-    } as FeaturesEntry,
-  },
-  {
-    type: "player",
-    data: {
-      uid: "fallback-player",
-      title: "Player",
-      heading: "A Reading Experience Reimagined",
-      content:
-        "Immerse yourself in distraction-free reading with our beautifully designed reader. Customizable fonts, themes, and layouts ensure comfort during your longest reading sessions.",
-      demo: "In the beginning, there was only darkness and the whisper of words yet unwritten. The library stretched infinitely in all directions, its shelves reaching toward an unseen ceiling, each book a universe waiting to be explored.\n\nShe ran her fingers along the spines, feeling the stories pulse beneath her touch like living things. Every volume held a promise, every page a doorway...",
-      points: [
-        "Automatic progress syncing across all devices",
-        "Adjustable typography for comfortable reading",
-        "Night mode for late-night reading sessions",
-        "Bookmarks and highlights to capture thoughts",
-      ],
-    } as PlayerEntry,
-  },
-  {
-    type: "testamonials",
-    data: {
-      uid: "fallback-testimonials",
-      title: "Testimonials",
-      heading: "Loved by Readers",
-      sub_heading: "Join thousands who have found their reading home.",
-      group: [
-        {
-          quote:
-            "Mimir's Well transformed how I read. The seamless experience across devices means I never lose my place.",
-          author: "Elena M.",
-          desig: "Avid Reader",
-          _metadata: { uid: "t1" },
-        },
-        {
-          quote:
-            "The curated collections introduced me to authors I never would have discovered on my own.",
-          author: "Marcus T.",
-          desig: "Literature Enthusiast",
-          _metadata: { uid: "t2" },
-        },
-        {
-          quote:
-            "Finally, a reading platform that feels like holding a real book. Elegant and intuitive.",
-          author: "Sofia R.",
-          desig: "Book Club Organizer",
-          _metadata: { uid: "t3" },
-        },
-      ],
-    } as TestimonialsEntry,
-  },
-  {
-    type: "pre_footer",
-    data: {
-      uid: "fallback-prefooter",
-      title: "Pre-Footer",
-      heading: "Begin Your Journey Today",
-      content:
-        "Join Mimir's Well and discover a world of stories waiting for you. Your next favorite book is just a click away.",
-    } as PreFooterEntry,
-  },
-];
+// Fallback sections (simplified - will use Contentstack data primarily)
+const fallbackSections: SectionComponent[] = [];
 
 export default async function LandingPage() {
   // Fetch all landing page data from Contentstack
@@ -187,7 +85,7 @@ export default async function LandingPage() {
 
   // Use Contentstack data or fallback
   const hero = data.hero || fallbackHero;
-  const blocks = data.blocks.length > 0 ? data.blocks : fallbackBlocks;
+  const sections = data.sections.length > 0 ? data.sections : fallbackSections;
 
   return (
     <div className="min-h-screen bg-parchment">
@@ -238,9 +136,9 @@ export default async function LandingPage() {
         </svg>
       </header>
 
-      {/* Dynamic Blocks - Rendered based on Contentstack landing_page.blocks */}
-      {blocks.map((block: ResolvedBlock, index: number) => (
-        <BlockRenderer key={`${block.type}-${index}`} block={block} />
+      {/* Dynamic Sections - Rendered based on Contentstack landing_page.sections */}
+      {sections.map((section: SectionComponent, index: number) => (
+        <BlockRenderer key={`${section.type}-${index}`} block={section} />
       ))}
 
       {/* Footer */}

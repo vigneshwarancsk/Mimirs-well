@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { PreFooterEntry } from "@/lib/contentstack/types";
+import { PreFooterComponent } from "@/lib/contentstack/types";
 
 interface PreFooterBlockProps {
-  data: PreFooterEntry;
+  data: PreFooterComponent;
 }
 
 export function PreFooterBlock({ data }: PreFooterBlockProps) {
@@ -21,11 +21,11 @@ export function PreFooterBlock({ data }: PreFooterBlockProps) {
           {data.heading}
         </h2>
         <p className="text-xl text-sand mb-10 max-w-2xl mx-auto">
-          {data.content.trim()}
+          {data.sub_heading.trim()}
         </p>
         <Link href="/signup">
           <Button size="lg" className="animate-pulse-glow">
-            Create Free Account
+            {data.signup_button_text}
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </Link>

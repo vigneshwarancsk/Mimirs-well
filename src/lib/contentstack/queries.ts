@@ -2,14 +2,10 @@ import stack from "./client";
 import {
   QuoteEntry,
   HeroEntry,
-  FeaturesEntry,
-  PlayerEntry,
-  TestimonialsEntry,
-  PreFooterEntry,
   LandingPageEntry,
   BlockReference,
-  ResolvedBlock,
   LandingPageData,
+  SectionComponent,
 } from "./types";
 
 // Content Type UIDs - adjust these to match your Contentstack setup
@@ -113,51 +109,36 @@ export async function getLandingPageEntry(): Promise<LandingPageEntry | null> {
 }
 
 /**
- * Resolve a block reference to its full data
+ * Parse sections array into typed section components
  */
-async function resolveBlock(
-  ref: BlockReference
-): Promise<ResolvedBlock | null> {
-  const { uid, _content_type_uid } = ref;
+function parseSections(
+  sections: LandingPageEntry["sections"]
+): SectionComponent[] {
+  const parsed: SectionComponent[] = [];
 
-  switch (_content_type_uid) {
-    case CONTENT_TYPES.HERO: {
-      const data = await getEntryByUid<HeroEntry>(_content_type_uid, uid);
-      return data ? { type: "hero", data } : null;
+  for (const section of sections || []) {
+    if (section.features) {
+      parsed.push({ type: "features", data: section.features });
+    } else if (section.demo) {
+      parsed.push({ type: "demo", data: section.demo });
+    } else if (section.testemonials) {
+      parsed.push({ type: "testemonials", data: section.testemonials });
+    } else if (section.pre_footer) {
+      parsed.push({ type: "pre_footer", data: section.pre_footer });
     }
-    case CONTENT_TYPES.FEATURES: {
-      const data = await getEntryByUid<FeaturesEntry>(_content_type_uid, uid);
-      return data ? { type: "features", data } : null;
-    }
-    case CONTENT_TYPES.PLAYER: {
-      const data = await getEntryByUid<PlayerEntry>(_content_type_uid, uid);
-      return data ? { type: "player", data } : null;
-    }
-    case CONTENT_TYPES.TESTIMONIALS: {
-      const data = await getEntryByUid<TestimonialsEntry>(
-        _content_type_uid,
-        uid
-      );
-      return data ? { type: "testamonials", data } : null;
-    }
-    case CONTENT_TYPES.PRE_FOOTER: {
-      const data = await getEntryByUid<PreFooterEntry>(_content_type_uid, uid);
-      return data ? { type: "pre_footer", data } : null;
-    }
-    default:
-      console.warn(`Unknown block type: ${_content_type_uid}`);
-      return null;
   }
+
+  return parsed;
 }
 
 /**
- * Fetch all landing page data with resolved blocks
+ * Fetch all landing page data with resolved sections
  */
 export async function getLandingPageData(): Promise<LandingPageData> {
   const landingPage = await getLandingPageEntry();
 
   if (!landingPage) {
-    return { hero: null, blocks: [] };
+    return { hero: null, sections: [] };
   }
 
   // Resolve hero reference
@@ -170,14 +151,8 @@ export async function getLandingPageData(): Promise<LandingPageData> {
     );
   }
 
-  // Resolve all blocks in parallel
-  const blockPromises = (landingPage.blocks || []).map(resolveBlock);
-  const resolvedBlocks = await Promise.all(blockPromises);
+  // Parse sections (they're already inline, no need to fetch)
+  const sections = parseSections(landingPage.sections);
 
-  // Filter out null blocks
-  const blocks = resolvedBlocks.filter(
-    (block): block is ResolvedBlock => block !== null
-  );
-
-  return { hero, blocks };
+  return { hero, sections };
 }

@@ -1,4 +1,4 @@
-import { ResolvedBlock } from "@/lib/contentstack/types";
+import { SectionComponent } from "@/lib/contentstack/types";
 import { HeroBlock } from "./HeroBlock";
 import { FeaturesBlock } from "./FeaturesBlock";
 import { PlayerBlock } from "./PlayerBlock";
@@ -6,7 +6,7 @@ import { TestimonialsBlock } from "./TestimonialsBlock";
 import { PreFooterBlock } from "./PreFooterBlock";
 
 interface BlockRendererProps {
-  block: ResolvedBlock;
+  block: SectionComponent;
 }
 
 /**
@@ -14,13 +14,11 @@ interface BlockRendererProps {
  */
 export function BlockRenderer({ block }: BlockRendererProps) {
   switch (block.type) {
-    case "hero":
-      return <HeroBlock data={block.data} />;
     case "features":
       return <FeaturesBlock data={block.data} />;
-    case "player":
+    case "demo":
       return <PlayerBlock data={block.data} />;
-    case "testamonials":
+    case "testemonials":
       return <TestimonialsBlock data={block.data} />;
     case "pre_footer":
       return <PreFooterBlock data={block.data} />;

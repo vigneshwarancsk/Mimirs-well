@@ -1,12 +1,12 @@
-import { PlayerEntry } from "@/lib/contentstack/types";
+import { DemoComponent } from "@/lib/contentstack/types";
 
 interface PlayerBlockProps {
-  data: PlayerEntry;
+  data: DemoComponent;
 }
 
 export function PlayerBlock({ data }: PlayerBlockProps) {
   // Parse demo text into paragraphs
-  const demoParagraphs = data.demo.split("\n\n").filter((p) => p.trim());
+  const demoParagraphs = data.demo_text.split("\n\n").filter((p) => p.trim());
 
   // Handle heading with gradient on "Reimagined" if present
   const renderHeading = () => {
@@ -68,7 +68,7 @@ export function PlayerBlock({ data }: PlayerBlockProps) {
               {data.content.trim()}
             </p>
             <ul className="space-y-4">
-              {data.points.map((item, index) => (
+              {data.list.map((item, index) => (
                 <li key={index} className="flex items-center gap-3 text-walnut">
                   <div className="w-6 h-6 rounded-full bg-copper/10 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-copper" />

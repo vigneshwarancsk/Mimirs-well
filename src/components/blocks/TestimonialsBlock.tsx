@@ -1,8 +1,8 @@
 import { Quote } from "lucide-react";
-import { TestimonialsEntry } from "@/lib/contentstack/types";
+import { TestimonialsComponent } from "@/lib/contentstack/types";
 
 interface TestimonialsBlockProps {
-  data: TestimonialsEntry;
+  data: TestimonialsComponent;
 }
 
 export function TestimonialsBlock({ data }: TestimonialsBlockProps) {
@@ -13,22 +13,22 @@ export function TestimonialsBlock({ data }: TestimonialsBlockProps) {
           <h2 className="font-display text-4xl md:text-5xl font-bold text-ink mb-4">
             {data.heading}
           </h2>
-          <p className="text-xl text-walnut">{data.sub_heading}</p>
+          <p className="text-xl text-walnut">{data.description}</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {data.group.map((testimonial, index) => (
+          {data.tests.map((testimonial, index) => (
             <div
               key={testimonial._metadata?.uid || index}
               className="bg-parchment rounded-xl p-8 shadow-sm relative"
             >
               <Quote className="w-10 h-10 text-copper/20 absolute top-6 right-6" />
               <p className="text-walnut leading-relaxed mb-6 relative z-10">
-                &ldquo;{testimonial.quote.trim()}&rdquo;
+                {testimonial.review.trim()}
               </p>
               <div>
-                <p className="font-semibold text-ink">{testimonial.author}</p>
-                <p className="text-sm text-sage">{testimonial.desig}</p>
+                <p className="font-semibold text-ink">{testimonial.user}</p>
+                <p className="text-sm text-sage">{testimonial.designation}</p>
               </div>
             </div>
           ))}
