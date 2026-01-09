@@ -132,7 +132,7 @@ export default function LibraryPage() {
 
         {/* Books Grid */}
         {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {filteredBooks.map((book, index) => (
               <div 
                 key={book.id}
@@ -142,7 +142,7 @@ export default function LibraryPage() {
                 <BookCard 
                   book={book} 
                   showProgress={book.libraryStatus === 'reading'}
-                  size="sm"
+                  size="md"
                 />
               </div>
             ))}
@@ -170,14 +170,14 @@ export default function LibraryPage() {
                 Suggested For You
               </h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {suggestedBooks.map((book, index) => (
                 <div 
                   key={book.id}
                   className="animate-slide-up opacity-0"
                   style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
                 >
-                  <BookCard book={book} size="sm" />
+                  <BookCard book={book} size="md" />
                 </div>
               ))}
             </div>

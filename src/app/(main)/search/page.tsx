@@ -208,14 +208,14 @@ export default function SearchPage() {
             </div>
           </div>
         ) : results.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {results.map((book, index) => (
               <div 
                 key={book.id}
                 className="animate-slide-up opacity-0"
                 style={{ animationDelay: `${index * 30}ms`, animationFillMode: 'forwards' }}
               >
-                <BookCard book={book} size="sm" />
+                <BookCard book={book} size="md" />
               </div>
             ))}
           </div>
