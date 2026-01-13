@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Book, BookWithProgress } from "@/types";
 import { BookSection } from "@/components/ui/BookSection";
 import { HeroBanner } from "@/components/home/HeroBanner";
+import { QuoteSection } from "@/components/home/QuoteSection";
 import { getContentProvider } from "@/lib/content";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -63,7 +64,7 @@ export default function HomePage() {
     // return 'new';      // Shows "Start your reading journey" hero
     // return 'active';   // Shows stats and activity chart hero
     // return 'dormant';  // Shows "Glad you're back" hero
-    return "dormant";
+    // return "dormant";
 
     // Real logic based on stats
     if (
@@ -296,6 +297,12 @@ export default function HomePage() {
             layout="grid"
           />
         )}
+
+        {/* Quote Section */}
+        <QuoteSection
+          readerStatus={readerStatus}
+          currentStreak={stats?.currentStreak || 0}
+        />
 
         {/* Featured Books */}
         <BookSection

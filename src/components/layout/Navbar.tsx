@@ -4,13 +4,32 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BookOpen, Search, Library, Home, LogOut, Menu, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
-import { useState } from 'react';
+import { ProfileAvatar } from '@/components/ui/ProfileAvatar';
+import { useState, useEffect } from 'react';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userStats, setUserStats] = useState({ currentStreak: 0, totalBooksCompleted: 0 });
+
+  useEffect(() => {
+    // Fetch user stats for profile avatar
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setUserStats({
+            currentStreak: data.data.currentStreak || 0,
+            totalBooksCompleted: data.data.totalBooksCompleted || 0,
+          });
+        }
+      })
+      .catch(() => {
+        // Silently fail - use defaults
+      });
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -63,17 +82,11 @@ export function Navbar() {
           {/* User Menu */}
           <div className="hidden md:flex items-center gap-4">
             {user && (
-              <span className="text-sm text-walnut">
-                Hello, <span className="font-medium text-ink">{user.name}</span>
-              </span>
+              <ProfileAvatar
+                currentStreak={userStats.currentStreak}
+                totalBooksCompleted={userStats.totalBooksCompleted}
+              />
             )}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-walnut hover:text-copper transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">Logout</span>
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -107,9 +120,18 @@ export function Navbar() {
             ))}
             <hr className="border-sand" />
             {user && (
-              <p className="text-sm text-walnut px-3">
-                Signed in as <span className="font-medium text-ink">{user.email}</span>
-              </p>
+              <div className="px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <ProfileAvatar
+                    currentStreak={userStats.currentStreak}
+                    totalBooksCompleted={userStats.totalBooksCompleted}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-ink">{user.name}</p>
+                    <p className="text-xs text-walnut/70">{user.email}</p>
+                  </div>
+                </div>
+              </div>
             )}
             <button
               onClick={() => {
