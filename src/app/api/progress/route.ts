@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db/mongodb';
-import { ReadingProgress, LibraryItem } from '@/lib/db/models';
-import { UserStats } from '@/lib/db/models/UserStats';
-import { verifyToken } from '@/lib/auth/jwt';
+import { NextRequest, NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import { ReadingProgress, LibraryItem } from "@/lib/db/models";
+import { UserStats } from "@/lib/db/models/UserStats";
+import { verifyToken } from "@/lib/auth/jwt";
 
 // Helper to check if two dates are on the same day
 function isSameDay(date1: Date, date2: Date): boolean {
@@ -12,18 +12,26 @@ function isSameDay(date1: Date, date2: Date): boolean {
 // Helper to check if two dates are consecutive days
 function isConsecutiveDay(prev: Date, current: Date): boolean {
   const oneDay = 24 * 60 * 60 * 1000;
-  const prevDate = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate());
-  const currentDate = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+  const prevDate = new Date(
+    prev.getFullYear(),
+    prev.getMonth(),
+    prev.getDate()
+  );
+  const currentDate = new Date(
+    current.getFullYear(),
+    current.getMonth(),
+    current.getDate()
+  );
   return currentDate.getTime() - prevDate.getTime() === oneDay;
 }
 
 // Get reading progress for a book
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get("token")?.value;
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Not authenticated' },
+        { success: false, error: "Not authenticated" },
         { status: 401 }
       );
     }
@@ -31,13 +39,13 @@ export async function GET(request: NextRequest) {
     const payload = await verifyToken(token);
     if (!payload) {
       return NextResponse.json(
-        { success: false, error: 'Invalid token' },
+        { success: false, error: "Invalid token" },
         { status: 401 }
       );
     }
 
     const { searchParams } = new URL(request.url);
-    const bookId = searchParams.get('bookId');
+    const bookId = searchParams.get("bookId");
 
     await connectToDatabase();
 
@@ -54,9 +62,9 @@ export async function GET(request: NextRequest) {
     const allProgress = await ReadingProgress.find({ userId: payload.userId });
     return NextResponse.json({ success: true, data: allProgress });
   } catch (error) {
-    console.error('Get progress error:', error);
+    console.error("Get progress error:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to get progress' },
+      { success: false, error: "Failed to get progress" },
       { status: 500 }
     );
   }
@@ -65,10 +73,10 @@ export async function GET(request: NextRequest) {
 // Update reading progress with session tracking
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get("token")?.value;
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Not authenticated' },
+        { success: false, error: "Not authenticated" },
         { status: 401 }
       );
     }
@@ -76,23 +84,26 @@ export async function POST(request: NextRequest) {
     const payload = await verifyToken(token);
     if (!payload) {
       return NextResponse.json(
-        { success: false, error: 'Invalid token' },
+        { success: false, error: "Invalid token" },
         { status: 401 }
       );
     }
 
-    const { 
-      bookId, 
-      currentPage, 
+    const {
+      bookId,
+      currentPage,
       totalPages,
       // Optional session data for detailed tracking
       sessionStartPage,
-      sessionDurationMinutes 
+      sessionDurationMinutes,
     } = await request.json();
-    
+
     if (!bookId || !currentPage || !totalPages) {
       return NextResponse.json(
-        { success: false, error: 'Book ID, current page, and total pages are required' },
+        {
+          success: false,
+          error: "Book ID, current page, and total pages are required",
+        },
         { status: 400 }
       );
     }
@@ -108,21 +119,25 @@ export async function POST(request: NextRequest) {
       bookId,
     });
 
-    const pagesRead = sessionStartPage 
+    const pagesRead = sessionStartPage
       ? Math.max(0, currentPage - sessionStartPage)
-      : existingProgress 
-        ? Math.max(0, currentPage - existingProgress.currentPage)
-        : currentPage - 1;
+      : existingProgress
+      ? Math.max(0, currentPage - existingProgress.currentPage)
+      : currentPage - 1;
 
     // Build session data if we have duration info
-    const sessionData = sessionDurationMinutes ? {
-      startedAt: new Date(now.getTime() - sessionDurationMinutes * 60 * 1000),
-      endedAt: now,
-      startPage: sessionStartPage || (existingProgress?.currentPage || 1),
-      endPage: currentPage,
-      pagesRead,
-      durationMinutes: sessionDurationMinutes,
-    } : null;
+    const sessionData = sessionDurationMinutes
+      ? {
+          startedAt: new Date(
+            now.getTime() - sessionDurationMinutes * 60 * 1000
+          ),
+          endedAt: now,
+          startPage: sessionStartPage || existingProgress?.currentPage || 1,
+          endPage: currentPage,
+          pagesRead,
+          durationMinutes: sessionDurationMinutes,
+        }
+      : null;
 
     // Update progress with session tracking
     const updateData: Record<string, unknown> = {
@@ -151,11 +166,11 @@ export async function POST(request: NextRequest) {
 
     const progress = await ReadingProgress.findOneAndUpdate(
       { userId: payload.userId, bookId },
-      sessionData 
-        ? { 
+      sessionData
+        ? {
             $set: { ...updateData, $push: undefined, $inc: undefined },
             $push: { readingSessions: sessionData },
-            $inc: { totalTimeSpentMinutes: sessionDurationMinutes }
+            $inc: { totalTimeSpentMinutes: sessionDurationMinutes },
           }
         : updateData,
       { upsert: true, new: true }
@@ -164,8 +179,8 @@ export async function POST(request: NextRequest) {
     // Update library item status
     await LibraryItem.findOneAndUpdate(
       { userId: payload.userId, bookId },
-      { 
-        status: completed ? 'completed' : 'reading',
+      {
+        status: completed ? "completed" : "reading",
         userId: payload.userId,
         bookId,
       },
@@ -174,18 +189,18 @@ export async function POST(request: NextRequest) {
 
     // Update user stats for streaks and activity tracking
     await updateUserStats(
-      payload.userId, 
-      bookId, 
-      pagesRead, 
-      sessionDurationMinutes || 0, 
+      payload.userId,
+      bookId,
+      pagesRead,
+      sessionDurationMinutes || 0,
       completed && !existingProgress?.completed
     );
 
     return NextResponse.json({ success: true, data: progress });
   } catch (error) {
-    console.error('Update progress error:', error);
+    console.error("Update progress error:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update progress' },
+      { success: false, error: "Failed to update progress" },
       { status: 500 }
     );
   }
@@ -215,12 +230,14 @@ async function updateUserStats(
       totalBooksCompleted: bookCompleted ? 1 : 0,
       totalPagesRead: pagesRead,
       totalReadingTimeMinutes: minutesRead,
-      readingHistory: [{
-        date: today,
-        pagesRead,
-        minutesRead,
-        booksRead: [bookId],
-      }],
+      readingHistory: [
+        {
+          date: today,
+          pagesRead,
+          minutesRead,
+          booksRead: [bookId],
+        },
+      ],
       lastActivityAt: now,
     });
     return;
@@ -232,7 +249,7 @@ async function updateUserStats(
 
   if (userStats.lastReadDate) {
     const lastRead = new Date(userStats.lastReadDate);
-    
+
     if (isSameDay(lastRead, now)) {
       // Same day, streak unchanged
     } else if (isConsecutiveDay(lastRead, now)) {
@@ -252,14 +269,14 @@ async function updateUserStats(
   const longestStreak = Math.max(userStats.longestStreak, newStreak);
 
   // Update or add to today's reading history
-  const todayHistory = userStats.readingHistory.find(
-    (h: { date: Date }) => isSameDay(new Date(h.date), today)
+  const todayHistory = userStats.readingHistory.find((h: { date: Date }) =>
+    isSameDay(new Date(h.date), today)
   );
 
   if (todayHistory) {
     // Update today's entry
     await UserStats.updateOne(
-      { userId, 'readingHistory.date': todayHistory.date },
+      { userId, "readingHistory.date": todayHistory.date },
       {
         $set: {
           currentStreak: newStreak,
@@ -272,11 +289,11 @@ async function updateUserStats(
           totalPagesRead: pagesRead,
           totalReadingTimeMinutes: minutesRead,
           totalBooksCompleted: bookCompleted ? 1 : 0,
-          'readingHistory.$.pagesRead': pagesRead,
-          'readingHistory.$.minutesRead': minutesRead,
+          "readingHistory.$.pagesRead": pagesRead,
+          "readingHistory.$.minutesRead": minutesRead,
         },
         $addToSet: {
-          'readingHistory.$.booksRead': bookId,
+          "readingHistory.$.booksRead": bookId,
         },
       }
     );
@@ -299,12 +316,14 @@ async function updateUserStats(
         },
         $push: {
           readingHistory: {
-            $each: [{
-              date: today,
-              pagesRead,
-              minutesRead,
-              booksRead: [bookId],
-            }],
+            $each: [
+              {
+                date: today,
+                pagesRead,
+                minutesRead,
+                booksRead: [bookId],
+              },
+            ],
             $slice: -365, // Keep last 365 days
           },
         },
