@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('[API: Stats] Connecting to MongoDB...');
     await connectToDatabase();
+    console.log('[API: Stats] MongoDB connected, fetching user stats...');
 
     // Get or create user stats
     let userStats = await UserStats.findOne({ userId: payload.userId });

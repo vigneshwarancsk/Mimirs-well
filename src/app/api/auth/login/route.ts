@@ -14,7 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[API: Login] Connecting to MongoDB...');
     await connectToDatabase();
+    console.log('[API: Login] MongoDB connected, querying user...');
 
     // Find user with password
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
@@ -63,7 +65,16 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('[API: Login] ❌ Error occurred:');
+    console.error('[API: Login] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[API: Login] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Check if it's a MongoDB connection error
+    if (error instanceof Error && error.message.includes('Mongo')) {
+      console.error('[API: Login] MongoDB connection error detected!');
+      console.error('[API: Login] Check MongoDB URI and network connectivity');
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to login' },
       { status: 500 }

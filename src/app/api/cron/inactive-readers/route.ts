@@ -44,7 +44,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('[API: Cron] Starting inactive readers check...');
+    console.log('[API: Cron] Connecting to MongoDB...');
     await connectToDatabase();
+    console.log('[API: Cron] MongoDB connected successfully!');
 
     const now = new Date();
     const results = {
@@ -180,7 +183,16 @@ export async function GET(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error("Cron job error:", error);
+    console.error("[API: Cron] ❌ Error occurred:");
+    console.error("[API: Cron] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[API: Cron] Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    
+    // Check if it's a MongoDB connection error
+    if (error instanceof Error && error.message.includes("Mongo")) {
+      console.error("[API: Cron] MongoDB connection error detected!");
+      console.error("[API: Cron] Check MongoDB URI and network connectivity");
+    }
+    
     return NextResponse.json(
       { error: "Failed to process inactive readers" },
       { status: 500 }

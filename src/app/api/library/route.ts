@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('[API: Library GET] Connecting to MongoDB...');
     await connectToDatabase();
+    console.log('[API: Library GET] MongoDB connected, fetching library items...');
 
     const libraryItems = await LibraryItem.find({ userId: payload.userId });
     const progress = await ReadingProgress.find({ userId: payload.userId });
@@ -48,7 +50,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: library });
   } catch (error) {
-    console.error('Get library error:', error);
+    console.error('[API: Library GET] ❌ Error occurred:');
+    console.error('[API: Library GET] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[API: Library GET] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Check if it's a MongoDB connection error
+    if (error instanceof Error && error.message.includes('Mongo')) {
+      console.error('[API: Library GET] MongoDB connection error detected!');
+      console.error('[API: Library GET] Check MongoDB URI and network connectivity');
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to get library' },
       { status: 500 }
