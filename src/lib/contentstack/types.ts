@@ -164,3 +164,37 @@ export interface BookEntry {
   is_featured?: boolean;
   is_popular?: boolean;
 }
+
+// Home Hero Banner Entry (Personalized)
+export interface HomeHeroBannerStat {
+  value: string;
+  text: string;
+  _metadata?: {
+    uid: string;
+  };
+}
+
+export interface HomeHeroBannerBox {
+  primary_icon_name: string;
+  secondary_icon_name: string;
+  title: string;
+  subtitle: string;
+  stats?: HomeHeroBannerStat[];
+}
+
+export interface HomeHeroBannerEntry {
+  uid: string;
+  title: string; // Variant name: "New reader", "Active", "Dormant"
+  greeting: string; // Template: "{getGreeting()}" or static text
+  heading: string; // Template: "{userName} !"
+  subheading?: string; // Template with variables
+  subheading_2?: string;
+  box?: HomeHeroBannerBox;
+  cta?: BlockReference[];
+  locale: string;
+  _variant?: {
+    _uid: string;
+    _instance_uid: string;
+    _change_set: string[];
+  };
+}
