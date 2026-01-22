@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Book } from '@/types';
 import { getContentProvider } from '@/lib/content';
+import { useAuthStore } from '@/store/auth-store';
+import { BookCompletionCelebration } from '@/components/ui/BookCompletionCelebration';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -14,6 +16,7 @@ import {
   Moon,
   Minus,
   Plus,
+  Trophy,
 } from 'lucide-react';
 
 // Simulated book content for demo (in production, this would be the actual PDF content)
@@ -46,6 +49,7 @@ const generateBookContent = (book: Book) => {
 export default function ReaderPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuthStore();
   const [book, setBook] = useState<Book | null>(null);
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +58,8 @@ export default function ReaderPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [fontSize, setFontSize] = useState(18);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const hasCompletedRef = useRef(false);
 
   // Load book and progress
   useEffect(() => {
@@ -139,7 +145,47 @@ export default function ReaderPage() {
 
   const goToNextPage = () => {
     if (book && currentPage < book.pageCount) {
-      setCurrentPage(prev => prev + 1);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      
+      // Check if user completed the book
+      if (nextPage === book.pageCount && !hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        // Mark book as completed in library
+        markBookAsCompleted();
+        // Show celebration after a short delay
+        setTimeout(() => {
+          setShowCelebration(true);
+        }, 500);
+      }
+    }
+  };
+
+  const markBookAsCompleted = async () => {
+    try {
+      // Update library status to completed
+      await fetch('/api/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: params.id,
+          status: 'completed',
+        }),
+      });
+      
+      // Update progress to completed
+      await fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: params.id,
+          currentPage: book?.pageCount,
+          totalPages: book?.pageCount,
+          completed: true,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to mark book as completed:', error);
     }
   };
 
@@ -171,6 +217,14 @@ export default function ReaderPage() {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-charcoal' : 'bg-parchment'}`}>
+      {/* Book Completion Celebration Modal */}
+      <BookCompletionCelebration
+        book={book}
+        userName={user?.name || 'Reader'}
+        userEmail={user?.email || ''}
+        isOpen={showCelebration}
+        onClose={() => setShowCelebration(false)}
+      />
       {/* Header */}
       <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${
         isDarkMode ? 'bg-ink/90 border-walnut/30' : 'bg-parchment/90 border-sand'
@@ -336,21 +390,34 @@ export default function ReaderPage() {
             )}
           </div>
 
-          {/* Next Page */}
-          <button
-            onClick={goToNextPage}
-            disabled={currentPage === book.pageCount}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              currentPage === book.pageCount
-                ? 'opacity-50 cursor-not-allowed'
-                : isDarkMode
+          {/* Next Page or Finish Button */}
+          {currentPage === book.pageCount ? (
+            <button
+              onClick={() => {
+                if (!hasCompletedRef.current) {
+                  hasCompletedRef.current = true;
+                  markBookAsCompleted();
+                }
+                setShowCelebration(true);
+              }}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-copper text-white font-semibold hover:from-amber-500 hover:to-copper/90 transition-all shadow-lg"
+            >
+              <span>Finish Book</span>
+              <Trophy className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              onClick={goToNextPage}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                isDarkMode
                   ? 'text-sand hover:bg-walnut/30'
                   : 'text-walnut hover:bg-sand'
-            }`}
-          >
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight className="w-5 h-5" />
-          </button>
+              }`}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </footer>
     </div>

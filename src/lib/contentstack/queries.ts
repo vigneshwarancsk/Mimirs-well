@@ -3,9 +3,9 @@ import {
   QuoteEntry,
   HeroEntry,
   LandingPageEntry,
-  BlockReference,
   LandingPageData,
   SectionComponent,
+  HomeHeroBannerEntry,
 } from "./types";
 
 // Content Type UIDs - adjust these to match your Contentstack setup
@@ -17,6 +17,7 @@ const CONTENT_TYPES = {
   PLAYER: "player",
   TESTIMONIALS: "testamonials",
   PRE_FOOTER: "pre_footer",
+  HOME_HERO_BANNER: "hero_banner", // Add your content type UID here
 };
 
 /**
@@ -155,4 +156,61 @@ export async function getLandingPageData(): Promise<LandingPageData> {
   const sections = parseSections(landingPage.sections);
 
   return { hero, sections };
+}
+
+/**
+ * Fetch personalized home hero banner
+ * Uses variant parameter from Personalize SDK for personalized content
+ */
+export async function getHomeHeroBanner(
+  variantParam?: string | null
+): Promise<HomeHeroBannerEntry | null> {
+  try {
+    const query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry();
+
+    // Add variant parameter for personalized content if available
+    const queryWithParams = variantParam
+      ? query.addParams({ personalize_variants: variantParam })
+      : query;
+
+    const result = await queryWithParams.find();
+    const entries = result.entries as unknown as HomeHeroBannerEntry[];
+
+    if (!entries || entries.length === 0) {
+      return null;
+    }
+
+    // Return the first entry (personalized variant will be applied by Contentstack)
+    return entries[0];
+  } catch (error) {
+    console.error("Failed to fetch home hero banner from Contentstack:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch personalized home hero banner by entry UID
+ * Useful when you know the specific entry to fetch
+ */
+export async function getHomeHeroBannerByUid(
+  entryUid: string,
+  variantParam?: string | null
+): Promise<HomeHeroBannerEntry | null> {
+  try {
+    const query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry(entryUid);
+
+    // Add variant parameter for personalized content if available
+    const queryWithParams = variantParam
+      ? query.addParams({ personalize_variants: variantParam })
+      : query;
+
+    const result = await queryWithParams.fetch();
+    return result as unknown as HomeHeroBannerEntry;
+  } catch (error) {
+    console.error(
+      `Failed to fetch home hero banner ${entryUid} from Contentstack:`,
+      error
+    );
+    return null;
+  }
 }
