@@ -1,12 +1,8 @@
 "use client";
 
-import { read } from "fs";
 import {
-  BookOpen,
-  Target,
   RotateCcw,
   Sparkles,
-  TrendingUp,
   ScrollText,
   Award,
 } from "lucide-react";
@@ -24,14 +20,13 @@ export function MotivationalBox({
   thisWeekPages = 0,
   daysActiveThisWeek = 0,
 }: MotivationalBoxProps) {
-  // Determine reader status
-  //   const readerStatus: "new" | "active" | "dormant" =
-  //     currentStreak === 0 && totalBooksCompleted === 0
-  //       ? "new"
-  //       : currentStreak > 0 || thisWeekPages > 0
-  //       ? "active"
-  //       : "dormant";
-  const readerStatus = "dormant";
+  // Determine reader status based on activity
+  const readerStatus: "new" | "active" | "dormant" =
+    currentStreak === 0 && totalBooksCompleted === 0
+      ? "new"
+      : currentStreak > 0 || thisWeekPages > 0
+      ? "active"
+      : "dormant";
 
   // Norse mythology themed messages - 3 variants
   const motivationalVariants = {

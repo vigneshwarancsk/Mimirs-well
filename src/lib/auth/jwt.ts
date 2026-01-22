@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, JWTPayload as JoseJWTPayload } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-super-secret-key-change-in-production'
@@ -12,7 +12,7 @@ export interface JWTPayload {
 }
 
 export async function signToken(payload: JWTPayload): Promise<string> {
-  const token = await new SignJWT(payload)
+  const token = await new SignJWT(payload as unknown as JoseJWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(JWT_EXPIRES_IN)

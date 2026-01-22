@@ -27,6 +27,9 @@ const PersonalizeContext = createContext<PersonalizeContextType>({
   getVariantAlias: () => undefined,
 });
 
+// Type for the resolved SDK instance
+type PersonalizeSdk = Awaited<ReturnType<typeof Personalize.init>>;
+
 export function PersonalizeProvider({
   children,
   projectUid,
@@ -36,9 +39,7 @@ export function PersonalizeProvider({
 }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [variantParam, setVariantParam] = useState<string | null>(null);
-  const [sdkInstance, setSdkInstance] = useState<ReturnType<
-    typeof Personalize.init
-  > | null>(null);
+  const [sdkInstance, setSdkInstance] = useState<PersonalizeSdk | null>(null);
 
   useEffect(() => {
     async function initPersonalize() {
@@ -63,7 +64,7 @@ export function PersonalizeProvider({
 
         // Initialize the SDK
         const sdk = await Personalize.init(uid);
-        setSdkInstance(sdk as ReturnType<typeof Personalize.init>);
+        setSdkInstance(sdk);
         setVariantParam(sdk.getVariantParam());
         setIsInitialized(true);
 
@@ -122,7 +123,7 @@ export function PersonalizeProvider({
     (experienceShortUid: string): string | undefined => {
       if (sdkInstance) {
         try {
-          const aliases = sdkInstance.getVariantAliases();
+          const aliases = sdkInstance.getVariantAliases() as unknown as Record<string, string>;
           return aliases[experienceShortUid];
         } catch (error) {
           console.error("Failed to get variant alias:", error);
