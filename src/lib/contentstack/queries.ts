@@ -160,30 +160,42 @@ export async function getLandingPageData(): Promise<LandingPageData> {
 
 /**
  * Fetch personalized home hero banner
- * Uses variant parameter from Personalize SDK for personalized content
+ * Uses variant aliases from Personalize SDK for personalized content
+ * The variant alias format should be: cs_personalize_<experience>_<variant>
  */
 export async function getHomeHeroBanner(
   variantParam?: string | null
 ): Promise<HomeHeroBannerEntry | null> {
   try {
-    const query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry();
+    console.log("[CMS] Fetching home hero banner");
+    console.log("[CMS] Variant param:", variantParam);
+    
+    let query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry();
 
-    // Add variant parameter for personalized content if available
-    const queryWithParams = variantParam
-      ? query.addParams({ personalize_variants: variantParam })
-      : query;
+    // Use the SDK's .variants() method to request personalized content
+    // The method accepts variant aliases like 'cs_personalize_0_1'
+    if (variantParam) {
+      query = query.variants(variantParam);
+      console.log("[CMS] Using variants() method with:", variantParam);
+    }
 
-    const result = await queryWithParams.find();
+    const result = await query.find();
     const entries = result.entries as unknown as HomeHeroBannerEntry[];
+
+    console.log("[CMS] Entries found:", entries?.length);
 
     if (!entries || entries.length === 0) {
       return null;
     }
 
+    const entry = entries[0];
+    console.log("[CMS] Entry title:", entry.title);
+    console.log("[CMS] Has _variant:", !!entry._variant);
+    
     // Return the first entry (personalized variant will be applied by Contentstack)
-    return entries[0];
+    return entry;
   } catch (error) {
-    console.error("Failed to fetch home hero banner from Contentstack:", error);
+    console.error("[CMS] Failed to fetch home hero banner:", error);
     return null;
   }
 }
@@ -197,14 +209,14 @@ export async function getHomeHeroBannerByUid(
   variantParam?: string | null
 ): Promise<HomeHeroBannerEntry | null> {
   try {
-    const query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry(entryUid);
+    let query = stack.contentType(CONTENT_TYPES.HOME_HERO_BANNER).entry(entryUid);
 
-    // Add variant parameter for personalized content if available
-    const queryWithParams = variantParam
-      ? query.addParams({ personalize_variants: variantParam })
-      : query;
+    // Use the SDK's .variants() method to request personalized content
+    if (variantParam) {
+      query = query.variants(variantParam);
+    }
 
-    const result = await queryWithParams.fetch();
+    const result = await query.fetch();
     return result as unknown as HomeHeroBannerEntry;
   } catch (error) {
     console.error(
