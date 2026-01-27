@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Book, BookWithProgress } from "@/types";
 import { BookSection } from "@/components/ui/BookSection";
-import { HeroBanner } from "@/components/home/HeroBanner";
+import { HeroBanner, CMSHeroContent } from "@/components/home/HeroBanner";
 import { QuoteSection } from "@/components/home/QuoteSection";
+import { HomeLoader, HeroSkeleton } from "@/components/ui/HomeLoader";
 import { getContentProvider } from "@/lib/content";
 import { useAuthStore } from "@/store/auth-store";
+import { usePersonalize } from "@/lib/personalize/context";
+import { getHomeHeroBanner } from "@/lib/contentstack/queries";
+import { parseTemplate } from "@/lib/contentstack/template-parser";
 import {
   Target,
   ChevronRight,
@@ -16,6 +20,15 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+
+// Cache for hero content to prevent re-fetching on navigation
+let heroContentCache: {
+  content: CMSHeroContent | null;
+  userId: string | null;
+  timestamp: number;
+} | null = null;
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 interface LibraryData {
   bookId: string;
@@ -44,62 +57,69 @@ type ReaderStatus = "new" | "active" | "dormant";
 
 export default function HomePage() {
   const { user } = useAuthStore();
+  const { isInitialized, variantParam, initialize, triggerImpression, getExperiences } = usePersonalize();
+  
   const [featuredBooks, setFeaturedBooks] = useState<Book[]>([]);
   const [popularBooks, setPopularBooks] = useState<Book[]>([]);
   const [latestBooks, setLatestBooks] = useState<Book[]>([]);
-  const [continueReading, setContinueReading] = useState<BookWithProgress[]>(
-    []
-  );
+  const [continueReading, setContinueReading] = useState<BookWithProgress[]>([]);
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [readerStatus, setReaderStatus] = useState<ReaderStatus>("new");
   const [isLoading, setIsLoading] = useState(true);
+  const [isHeroLoading, setIsHeroLoading] = useState(true);
+  
+  // CMS personalized content - check cache first
+  const [cmsHeroContent, setCmsHeroContent] = useState<CMSHeroContent | null>(() => {
+    if (
+      heroContentCache &&
+      heroContentCache.userId === user?.id &&
+      Date.now() - heroContentCache.timestamp < CACHE_DURATION
+    ) {
+      return heroContentCache.content;
+    }
+    return null;
+  });
+  
+  const personalizeInitRef = useRef(false);
+  const heroFetchedRef = useRef(false);
 
-  // Determine reader status based on sample data
-  // To test different hero variants, temporarily return one of: 'new', 'active', or 'dormant'
-  const determineReaderStatus = (
+  // Determine reader status from CMS variant title
+  const getReaderStatusFromVariant = useCallback((title: string): ReaderStatus => {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes("dormant")) return "dormant";
+    if (lowerTitle.includes("active") || lowerTitle.includes("stats")) return "active";
+    if (lowerTitle.includes("new") || lowerTitle.includes("welcome")) return "new";
+    return "new";
+  }, []);
+
+  // Fallback: Determine reader status based on stats
+  const determineReaderStatus = useCallback((
     stats: UserStatsData | null,
     continueReadingCount: number
   ): ReaderStatus => {
-    // FOR TESTING: Uncomment one of these lines to see different hero variants:
-    // return 'new';      // Shows "Start your reading journey" hero
-    // return 'active';   // Shows stats and activity chart hero
-    // return 'dormant';  // Shows "Glad you're back" hero
-    // return "dormant";
-
-    // Real logic based on stats
-    if (
-      !stats ||
-      (stats.totalBooksCompleted === 0 && stats.totalPagesRead === 0)
-    ) {
-      return "new"; // New reader - no reading history
+    if (!stats || (stats.totalBooksCompleted === 0 && stats.totalPagesRead === 0)) {
+      return "new";
     }
 
-    // Check if user has been inactive for more than 7 days
-    // Note: In production, this would use lastReadDate from stats API
     const daysSinceLastRead =
       stats.thisWeekPages === 0 && stats.daysActiveThisWeek === 0 ? 10 : 0;
 
     if (daysSinceLastRead > 7 && stats.currentStreak === 0) {
-      return "dormant"; // Dormant reader - inactive for more than a week
+      return "dormant";
     }
 
-    // Active reader - has recent activity
-    if (
-      stats.currentStreak > 0 ||
-      stats.thisWeekPages > 0 ||
-      continueReadingCount > 0
-    ) {
+    if (stats.currentStreak > 0 || stats.thisWeekPages > 0 || continueReadingCount > 0) {
       return "active";
     }
 
-    return "active"; // Default to active
-  };
+    return "active";
+  }, []);
 
+  // Load initial data
   useEffect(() => {
     async function loadData() {
       const provider = getContentProvider();
 
-      // Load all book sections
       const [featured, popular, latest] = await Promise.all([
         provider.getFeaturedBooks(),
         provider.getPopularBooks(),
@@ -110,7 +130,6 @@ export default function HomePage() {
       setPopularBooks(popular);
       setLatestBooks(latest);
 
-      // Load user data
       try {
         const [libraryRes, statsRes] = await Promise.all([
           fetch("/api/library"),
@@ -124,7 +143,6 @@ export default function HomePage() {
               (item: LibraryData) => item.status === "reading" && item.progress
             ) || [];
 
-          // Get book details for reading items
           const allBooks = await provider.getAllBooks();
           const readingBooks: BookWithProgress[] = readingItems
             .map((item: LibraryData) => {
@@ -163,11 +181,137 @@ export default function HomePage() {
     loadData();
   }, []);
 
-  // Update reader status when stats or continueReading changes
+  // Initialize Personalize SDK with userId and liveAttributes
+  // liveAttributes are sent to the decision engine during init for real-time variant evaluation
   useEffect(() => {
-    const status = determineReaderStatus(stats, continueReading.length);
-    setReaderStatus(status);
-  }, [stats, continueReading.length]);
+    if (personalizeInitRef.current || !user?.id || !stats) return;
+
+    // Prepare user attributes for audience targeting
+    const attributes: Record<string, string | number | boolean> = {
+      books_in_library: stats.booksInProgress + stats.totalBooksCompleted,
+      is_reading: stats.booksInProgress > 0,
+      books_completed: stats.totalBooksCompleted,
+      read_streak: stats.currentStreak,
+      days_after_last_read: stats.thisWeekPages === 0 && stats.daysActiveThisWeek === 0 ? 10 : 0,
+    };
+
+    console.log("[HomePage] Initializing Personalize");
+    initialize(user.id, attributes);
+    personalizeInitRef.current = true;
+  }, [user?.id, stats, initialize]);
+
+  // Fetch personalized hero banner from CMS after SDK is initialized
+  useEffect(() => {
+    // Check if we have valid cached content
+    if (
+      heroContentCache &&
+      heroContentCache.userId === user?.id &&
+      Date.now() - heroContentCache.timestamp < CACHE_DURATION
+    ) {
+      console.log("[HomePage] Using cached hero content");
+      setCmsHeroContent(heroContentCache.content);
+      if (heroContentCache.content) {
+        const variantStatus = getReaderStatusFromVariant(heroContentCache.content.title);
+        setReaderStatus(variantStatus);
+      }
+      setIsHeroLoading(false);
+      heroFetchedRef.current = true;
+      return;
+    }
+
+    if (!isInitialized || heroFetchedRef.current || !personalizeInitRef.current) return;
+
+    async function fetchHeroBanner() {
+      setIsHeroLoading(true);
+      
+      // Log experiences for debugging
+      const experiences = getExperiences();
+      console.log("[HomePage] Experiences after init:", experiences);
+      console.log("[HomePage] Fetching hero with variantParam:", variantParam);
+      
+      try {
+        const heroBanner = await getHomeHeroBanner(variantParam);
+        
+        if (heroBanner) {
+          console.log("[HomePage] ✅ Hero banner fetched:", heroBanner.title);
+          console.log("[HomePage] Has _variant:", !!heroBanner._variant);
+          
+          const templateVars = {
+            userName: user?.name || "Reader",
+            continueReadingCount: continueReading.length,
+            currentStreak: stats?.currentStreak || 0,
+            booksCompleted: stats?.totalBooksCompleted || 0,
+            booksInLibrary: (stats?.booksInProgress || 0) + (stats?.totalBooksCompleted || 0),
+            thisWeekPages: stats?.thisWeekPages || 0,
+          };
+
+          const parsedContent: CMSHeroContent = {
+            title: heroBanner.title,
+            greeting: parseTemplate(heroBanner.greeting, templateVars),
+            heading: parseTemplate(heroBanner.heading, templateVars),
+            subheading: parseTemplate(heroBanner.subheading, templateVars),
+            subheading_2: parseTemplate(heroBanner.subheading_2, templateVars),
+            primaryIconName: heroBanner.box?.primary_icon_name,
+            secondaryIconName: heroBanner.box?.secondary_icon_name,
+            boxTitle: parseTemplate(heroBanner.box?.title, templateVars),
+            boxSubtitle: parseTemplate(heroBanner.box?.subtitle, templateVars),
+            boxStats: heroBanner.box?.stats?.map((s: { value: string; text: string }) => ({
+              value: parseTemplate(s.value, templateVars),
+              text: s.text,
+            })),
+          };
+
+          setCmsHeroContent(parsedContent);
+          
+          // Cache the content
+          heroContentCache = {
+            content: parsedContent,
+            userId: user?.id || null,
+            timestamp: Date.now(),
+          };
+          
+          // Update reader status based on variant title from CMS
+          const variantStatus = getReaderStatusFromVariant(heroBanner.title);
+          setReaderStatus(variantStatus);
+          console.log("[HomePage] Reader status from variant:", variantStatus);
+          
+          // Trigger impression for analytics
+          triggerImpression("0");
+        }
+      } catch (error) {
+        console.error("[HomePage] Failed to fetch personalized hero banner:", error);
+      } finally {
+        setIsHeroLoading(false);
+      }
+      
+      heroFetchedRef.current = true;
+    }
+
+    fetchHeroBanner();
+  }, [isInitialized, variantParam, stats, user?.id, user?.name, continueReading.length, getReaderStatusFromVariant, triggerImpression, getExperiences]);
+
+  // Fallback: Update reader status from stats if CMS content not available
+  useEffect(() => {
+    if (!cmsHeroContent) {
+      const status = determineReaderStatus(stats, continueReading.length);
+      setReaderStatus(status);
+      // If we've tried to fetch but got nothing, stop loading
+      if (heroFetchedRef.current) {
+        setIsHeroLoading(false);
+      }
+    }
+  }, [stats, continueReading.length, cmsHeroContent, determineReaderStatus]);
+  
+  // Ensure hero loading stops after a timeout to prevent indefinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isHeroLoading) {
+        setIsHeroLoading(false);
+      }
+    }, 5000); // 5 second max loading time
+    
+    return () => clearTimeout(timeout);
+  }, [isHeroLoading]);
 
   const getStreakEmoji = (streak: number) => {
     if (streak >= 30) return "🏆";
@@ -177,30 +321,25 @@ export default function HomePage() {
     return "📖";
   };
 
+  // Show full page loader while initial data is loading
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-parchment">
-        <div className="text-center">
-          <div className="inline-block animate-pulse">
-            <BookOpen className="w-12 h-12 text-copper mx-auto mb-4" />
-          </div>
-          <p className="font-display text-2xl text-walnut">
-            Loading your library...
-          </p>
-        </div>
-      </div>
-    );
+    return <HomeLoader />;
   }
 
   return (
     <div className="min-h-screen bg-parchment">
-      {/* Hero Banner - Dynamic based on reader status */}
-      <HeroBanner
-        userName={user?.name}
-        readerStatus={readerStatus}
-        stats={stats || undefined}
-        continueReadingCount={continueReading.length}
-      />
+      {/* Hero Banner - Show skeleton while loading, then personalized content */}
+      {isHeroLoading && !cmsHeroContent ? (
+        <HeroSkeleton />
+      ) : (
+        <HeroBanner
+          userName={user?.name}
+          readerStatus={readerStatus}
+          stats={stats || undefined}
+          continueReadingCount={continueReading.length}
+          cmsContent={cmsHeroContent || undefined}
+        />
+      )}
 
       {/* Reading Goals Banner */}
       {stats && stats.currentStreak > 0 && (

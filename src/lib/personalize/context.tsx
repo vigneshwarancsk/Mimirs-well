@@ -4,27 +4,32 @@ import React, {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
+  useRef,
 } from "react";
 import Personalize from "@contentstack/personalize-edge-sdk";
 
 interface PersonalizeContextType {
   isInitialized: boolean;
   variantParam: string | null;
-  setUserAttributes: (attrs: Record<string, string | number | boolean>) => void;
+  initialize: (
+    userId: string,
+    attributes: Record<string, string | number | boolean>
+  ) => Promise<void>;
   triggerEvent: (eventKey: string) => void;
   triggerImpression: (experienceShortUid: string) => void;
   getVariantAlias: (experienceShortUid: string) => string | undefined;
+  getExperiences: () => Array<{ shortUid: string; activeVariantShortUid: string | null }>;
 }
 
 const PersonalizeContext = createContext<PersonalizeContextType>({
   isInitialized: false,
   variantParam: null,
-  setUserAttributes: () => {},
+  initialize: async () => {},
   triggerEvent: () => {},
   triggerImpression: () => {},
   getVariantAlias: () => undefined,
+  getExperiences: () => [],
 });
 
 // Type for the resolved SDK instance
@@ -40,19 +45,41 @@ export function PersonalizeProvider({
   const [isInitialized, setIsInitialized] = useState(false);
   const [variantParam, setVariantParam] = useState<string | null>(null);
   const [sdkInstance, setSdkInstance] = useState<PersonalizeSdk | null>(null);
+  
+  // Prevent re-initialization across page navigations
+  const initializingRef = useRef(false);
+  const initializedUserRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    async function initPersonalize() {
-      const uid =
-        projectUid || process.env.NEXT_PUBLIC_PERSONALIZE_PROJECT_UID;
+  // Initialize SDK with userId and liveAttributes
+  // liveAttributes are sent directly to the decision engine during manifest fetch
+  // for real-time variant evaluation without needing to wait for sync
+  const initialize = useCallback(
+    async (
+      userId: string,
+      attributes: Record<string, string | number | boolean>
+    ) => {
+      // Skip if already initialized for this user or currently initializing
+      if (initializingRef.current) {
+        console.log("[Personalize] Already initializing, skipping...");
+        return;
+      }
+      
+      if (initializedUserRef.current === userId && isInitialized) {
+        console.log("[Personalize] Already initialized for user, using cached state");
+        return;
+      }
+
+      const uid = projectUid || process.env.NEXT_PUBLIC_PERSONALIZE_PROJECT_UID;
 
       if (!uid) {
         console.warn(
           "Personalize: No project UID provided. Set NEXT_PUBLIC_PERSONALIZE_PROJECT_UID"
         );
-        setIsInitialized(true); // Mark as initialized but without SDK
+        setIsInitialized(true);
         return;
       }
+
+      initializingRef.current = true;
 
       try {
         // Set edge API URL if provided
@@ -62,35 +89,55 @@ export function PersonalizeProvider({
           );
         }
 
-        // Initialize the SDK
-        const sdk = await Personalize.init(uid);
+        console.log("[Personalize] Initializing SDK");
+        console.log("[Personalize] Project UID:", uid);
+        console.log("[Personalize] User ID:", userId);
+        console.log("[Personalize] Live Attributes:", attributes);
+        
+        // Initialize with userId and liveAttributes
+        // liveAttributes are passed to the Edge API during manifest fetch
+        // allowing the decision engine to evaluate variants in real-time
+        const sdk = await Personalize.init(uid, {
+          userId,
+          liveAttributes: attributes,
+        });
+        
         setSdkInstance(sdk);
-        setVariantParam(sdk.getVariantParam());
+
+        // Get variant aliases after initialization
+        // getVariantAliases() returns the proper format for CMS API: ['cs_personalize_0_1']
+        const aliases = sdk.getVariantAliases() as string[];
+        const aliasParam = aliases && aliases.length > 0 ? aliases.join(",") : null;
+        
+        setVariantParam(aliasParam);
         setIsInitialized(true);
+        initializedUserRef.current = userId;
 
-        console.log("Personalize SDK initialized successfully");
-      } catch (error) {
-        console.error("Failed to initialize Personalize SDK:", error);
-        setIsInitialized(true); // Mark as initialized to prevent blocking
-      }
-    }
-
-    initPersonalize();
-  }, [projectUid]);
-
-  const setUserAttributes = useCallback(
-    (attrs: Record<string, string | number | boolean>) => {
-      if (sdkInstance) {
-        try {
-          sdkInstance.set(attrs);
-          // Update variant param after setting attributes
-          setVariantParam(sdkInstance.getVariantParam());
-        } catch (error) {
-          console.error("Failed to set user attributes:", error);
+        // Log experiences and variants for debugging
+        const experiences = sdk.getExperiences();
+        
+        console.log("[Personalize] ✅ SDK initialized");
+        console.log("[Personalize] Experiences:", JSON.stringify(experiences, null, 2));
+        console.log("[Personalize] Variant aliases:", aliases);
+        console.log("[Personalize] Variant param for CMS:", aliasParam);
+        
+        // Check if we got a variant
+        if (experiences.length > 0 && experiences[0].activeVariantShortUid) {
+          console.log("[Personalize] 🎯 Active variant:", experiences[0].activeVariantShortUid);
+        } else {
+          console.log("[Personalize] ⚠️ No active variant - using base entry");
         }
+
+        // Also persist attributes for future sessions
+        sdk.set(attributes);
+      } catch (error) {
+        console.error("[Personalize] ❌ Failed to initialize SDK:", error);
+        setIsInitialized(true);
+      } finally {
+        initializingRef.current = false;
       }
     },
-    [sdkInstance]
+    [projectUid, isInitialized]
   );
 
   const triggerEvent = useCallback(
@@ -99,7 +146,7 @@ export function PersonalizeProvider({
         try {
           sdkInstance.triggerEvent(eventKey);
         } catch (error) {
-          console.error("Failed to trigger event:", error);
+          console.error("[Personalize] Failed to trigger event:", error);
         }
       }
     },
@@ -112,7 +159,7 @@ export function PersonalizeProvider({
         try {
           sdkInstance.triggerImpression(experienceShortUid);
         } catch (error) {
-          console.error("Failed to trigger impression:", error);
+          console.error("[Personalize] Failed to trigger impression:", error);
         }
       }
     },
@@ -123,10 +170,13 @@ export function PersonalizeProvider({
     (experienceShortUid: string): string | undefined => {
       if (sdkInstance) {
         try {
-          const aliases = sdkInstance.getVariantAliases() as unknown as Record<string, string>;
+          const aliases = sdkInstance.getVariantAliases() as unknown as Record<
+            string,
+            string
+          >;
           return aliases[experienceShortUid];
         } catch (error) {
-          console.error("Failed to get variant alias:", error);
+          console.error("[Personalize] Failed to get variant alias:", error);
         }
       }
       return undefined;
@@ -134,15 +184,33 @@ export function PersonalizeProvider({
     [sdkInstance]
   );
 
+  const getExperiences = useCallback((): Array<{
+    shortUid: string;
+    activeVariantShortUid: string | null;
+  }> => {
+    if (sdkInstance) {
+      try {
+        return sdkInstance.getExperiences() as Array<{
+          shortUid: string;
+          activeVariantShortUid: string | null;
+        }>;
+      } catch (error) {
+        console.error("[Personalize] Failed to get experiences:", error);
+      }
+    }
+    return [];
+  }, [sdkInstance]);
+
   return (
     <PersonalizeContext.Provider
       value={{
         isInitialized,
         variantParam,
-        setUserAttributes,
+        initialize,
         triggerEvent,
         triggerImpression,
         getVariantAlias,
+        getExperiences,
       }}
     >
       {children}

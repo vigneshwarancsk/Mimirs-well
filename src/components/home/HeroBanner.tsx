@@ -12,10 +12,27 @@ import {
   ArrowRight,
   RotateCcw,
   ScrollText,
+  Star,
+  Flame,
+  LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
 type ReaderStatus = "new" | "active" | "dormant";
+
+// CMS Hero Content from Contentstack Personalize
+export interface CMSHeroContent {
+  title: string;
+  greeting?: string;
+  heading?: string;
+  subheading?: string;
+  subheading_2?: string;
+  primaryIconName?: string;
+  secondaryIconName?: string;
+  boxTitle?: string;
+  boxSubtitle?: string;
+  boxStats?: Array<{ value: string; text: string }>;
+}
 
 interface HeroBannerProps {
   userName?: string;
@@ -28,7 +45,27 @@ interface HeroBannerProps {
     weeklyHistory: { date: string; pagesRead: number; minutesRead: number }[];
   };
   continueReadingCount?: number;
+  cmsContent?: CMSHeroContent;
 }
+
+// Icon mapping for CMS icon names
+const iconMap: Record<string, LucideIcon> = {
+  BookOpen: BookOpen,
+  OpenBook: BookOpen,
+  Trophy: Trophy,
+  Target: Target,
+  TrendingUp: TrendingUp,
+  Star: Star,
+  Flame: Flame,
+  ScrollText: ScrollText,
+  Sparkles: Sparkles,
+  RotateCcw: RotateCcw,
+};
+
+const getIconComponent = (iconName?: string): LucideIcon => {
+  if (!iconName) return ScrollText;
+  return iconMap[iconName] || ScrollText;
+};
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -59,7 +96,10 @@ const getWeekDays = () => {
 };
 
 // New Reader Hero Banner - Norse Theme
-function NewReaderHero({ userName }: { userName?: string }) {
+function NewReaderHero({ userName, cmsContent }: { userName?: string; cmsContent?: CMSHeroContent }) {
+  const PrimaryIcon = getIconComponent(cmsContent?.primaryIconName);
+  const SecondaryIcon = getIconComponent(cmsContent?.secondaryIconName);
+  
   return (
     <div className="relative overflow-hidden">
       {/* Background Pattern - Golden Brown Theme */}
@@ -81,22 +121,21 @@ function NewReaderHero({ userName }: { userName?: string }) {
           <div className="text-parchment">
             <div className="flex items-center gap-2 mb-4 animate-fade-in">
               <Sparkles className="w-5 h-5 text-amber" />
-              <span className="text-amber font-medium">{getGreeting()}</span>
+              <span className="text-amber font-medium">
+                {cmsContent?.greeting || getGreeting()}
+              </span>
             </div>
 
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-4 animate-slide-up">
-              {userName || "Welcome"}!
+              {cmsContent?.heading || `${userName || "Welcome"}!`}
             </h1>
 
             <p className="text-sand/90 text-lg md:text-xl mb-6 animate-slide-up delay-100">
-              Begin your saga today. Discover thousands of ancient texts and
-              modern tales waiting to inspire, educate, and transport you to new
-              realms.
+              {cmsContent?.subheading || "Begin your saga today. Discover thousands of ancient texts and modern tales waiting to inspire, educate, and transport you to new realms."}
             </p>
 
             <p className="text-sand/80 text-base mb-8 animate-slide-up delay-200">
-              Join fellow scholars who are already exploring new worlds,
-              learning ancient wisdom, and expanding their horizons.
+              {cmsContent?.subheading_2 || "Join fellow scholars who are already exploring new worlds, learning ancient wisdom, and expanding their horizons."}
             </p>
 
             {/* CTA Button */}
@@ -116,32 +155,42 @@ function NewReaderHero({ userName }: { userName?: string }) {
                 <div className="flex justify-center">
                   <div className="relative">
                     <div className="w-32 h-32 bg-gradient-to-br from-amber-500 to-copper rounded-full flex items-center justify-center shadow-xl border-2 border-amber-400/30">
-                      <ScrollText className="w-16 h-16 text-white" />
+                      <PrimaryIcon className="w-16 h-16 text-white" />
                     </div>
                     <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-amber-400 to-copper rounded-full flex items-center justify-center shadow-lg border-2 border-amber-300/50">
-                      <span className="text-2xl">📜</span>
+                      <SecondaryIcon className="w-6 h-6 text-white" />
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-parchment font-display text-2xl font-semibold">
-                    Your Library Awaits
+                    {cmsContent?.boxTitle || "Your Library Awaits"}
                   </h3>
                   <p className="text-sand/80 text-sm">
-                    Build your collection of sagas and track your reading
-                    journey
+                    {cmsContent?.boxSubtitle || "Build your collection of sagas and track your reading journey"}
                   </p>
                 </div>
                 <div className="flex justify-center gap-4 pt-4">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-amber">1000+</div>
-                    <div className="text-sand/70 text-sm">Sagas Available</div>
-                  </div>
-                  <div className="w-px bg-amber-300/30" />
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-amber">24/7</div>
-                    <div className="text-sand/70 text-sm">Access</div>
-                  </div>
+                  {cmsContent?.boxStats && cmsContent.boxStats.length > 0 ? (
+                    cmsContent.boxStats.map((stat, index) => (
+                      <div key={index} className="text-center">
+                        <div className="text-3xl font-bold text-amber">{stat.value}</div>
+                        <div className="text-sand/70 text-sm">{stat.text}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-amber">1000+</div>
+                        <div className="text-sand/70 text-sm">Sagas Available</div>
+                      </div>
+                      <div className="w-px bg-amber-300/30" />
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-amber">24/7</div>
+                        <div className="text-sand/70 text-sm">Access</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -157,12 +206,21 @@ function ActiveReaderHero({
   userName,
   stats,
   continueReadingCount,
+  cmsContent,
 }: {
   userName?: string;
   stats?: HeroBannerProps["stats"];
   continueReadingCount?: number;
+  cmsContent?: CMSHeroContent;
 }) {
   const weekDays = getWeekDays();
+  
+  // Default subheading based on stats
+  const defaultSubheading = continueReadingCount && continueReadingCount > 0
+    ? `You have ${continueReadingCount} saga${continueReadingCount > 1 ? "s" : ""} waiting for you. Continue your quest!`
+    : stats?.currentStreak
+    ? `Your reading streak of ${stats.currentStreak} days honors the halls of Valhalla!`
+    : "Keep up the great reading!";
 
   return (
     <div className="relative overflow-hidden">
@@ -185,21 +243,17 @@ function ActiveReaderHero({
           <div className="text-parchment">
             <div className="flex items-center gap-2 mb-4 animate-fade-in">
               <Sparkles className="w-5 h-5 text-amber" />
-              <span className="text-amber font-medium">{getGreeting()}</span>
+              <span className="text-amber font-medium">
+                {cmsContent?.greeting || getGreeting()}
+              </span>
             </div>
 
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-4 animate-slide-up">
-              {userName || "Reader"}
+              {cmsContent?.heading || userName || "Reader"}
             </h1>
 
             <p className="text-sand/90 text-lg md:text-xl mb-8 animate-slide-up delay-100">
-              {continueReadingCount && continueReadingCount > 0
-                ? `You have ${continueReadingCount} saga${
-                    continueReadingCount > 1 ? "s" : ""
-                  } waiting for you. Continue your quest!`
-                : stats?.currentStreak
-                ? `Your reading streak of ${stats.currentStreak} days honors the halls of Valhalla!`
-                : "Keep up the great reading!"}
+              {cmsContent?.subheading || defaultSubheading}
             </p>
 
             {/* Quick Stats Row */}
@@ -348,7 +402,10 @@ function ActiveReaderHero({
 }
 
 // Dormant Reader Hero Banner - Norse Theme
-function DormantReaderHero({ userName }: { userName?: string }) {
+function DormantReaderHero({ userName, cmsContent }: { userName?: string; cmsContent?: CMSHeroContent }) {
+  const PrimaryIcon = getIconComponent(cmsContent?.primaryIconName || "Target");
+  const SecondaryIcon = getIconComponent(cmsContent?.secondaryIconName || "Flame");
+  
   return (
     <div className="relative overflow-hidden">
       {/* Background Pattern - Golden Brown Theme */}
@@ -370,22 +427,21 @@ function DormantReaderHero({ userName }: { userName?: string }) {
           <div className="text-parchment">
             <div className="flex items-center gap-2 mb-4 animate-fade-in">
               <RotateCcw className="w-5 h-5 text-amber" />
-              <span className="text-amber font-medium">Welcome back!</span>
+              <span className="text-amber font-medium">
+                {cmsContent?.greeting || "Welcome Back"}
+              </span>
             </div>
 
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-4 animate-slide-up">
-              Glad you&apos;re back, {userName || "Reader"}!
+              {cmsContent?.heading || `Glad you're back, ${userName || "Reader"}!`}
             </h1>
 
             <p className="text-sand/90 text-lg md:text-xl mb-6 animate-slide-up delay-100">
-              It&apos;s been a while. Every warrior returns to battle.
-              Let&apos;s get you back on track and rediscover the joy of
-              reading.
+              {cmsContent?.subheading || "It's been a while. Every warrior returns to battle. Let's get you back on track and rediscover the joy of reading."}
             </p>
 
             <p className="text-sand/80 text-base mb-8 animate-slide-up delay-200">
-              Your sagas are waiting for you. Pick up where you left off or
-              explore something new.
+              {cmsContent?.subheading_2 || "Your sagas are waiting for you. Pick up where you left off or explore something new."}
             </p>
 
             {/* CTA Buttons */}
@@ -414,20 +470,19 @@ function DormantReaderHero({ userName }: { userName?: string }) {
                 <div className="flex justify-center">
                   <div className="relative">
                     <div className="w-32 h-32 bg-gradient-to-br from-amber-500 to-copper rounded-full flex items-center justify-center shadow-xl border-2 border-amber-400/30">
-                      <Target className="w-16 h-16 text-white" />
+                      <PrimaryIcon className="w-16 h-16 text-white" />
                     </div>
                     <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-amber-400 to-copper rounded-full flex items-center justify-center shadow-lg border-2 border-amber-300/50 animate-pulse">
-                      <span className="text-2xl">🛡️</span>
+                      <SecondaryIcon className="w-6 h-6 text-white" />
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-parchment font-display text-2xl font-semibold">
-                    Return to the Quest
+                    {cmsContent?.boxTitle || "Return to the Quest"}
                   </h3>
                   <p className="text-sand/80 text-sm">
-                    Every page counts. Start small and rebuild your reading
-                    habit, brave scholar.
+                    {cmsContent?.boxSubtitle || "Every page counts. Start small and rebuild your reading habit, brave scholar."}
                   </p>
                 </div>
                 <div className="bg-white/10 rounded-xl p-4 space-y-2 border border-amber-300/20">
@@ -458,21 +513,23 @@ export function HeroBanner({
   readerStatus,
   stats,
   continueReadingCount,
+  cmsContent,
 }: HeroBannerProps) {
   switch (readerStatus) {
     case "new":
-      return <NewReaderHero userName={userName} />;
+      return <NewReaderHero userName={userName} cmsContent={cmsContent} />;
     case "active":
       return (
         <ActiveReaderHero
           userName={userName}
           stats={stats}
           continueReadingCount={continueReadingCount}
+          cmsContent={cmsContent}
         />
       );
     case "dormant":
-      return <DormantReaderHero userName={userName} />;
+      return <DormantReaderHero userName={userName} cmsContent={cmsContent} />;
     default:
-      return <NewReaderHero userName={userName} />;
+      return <NewReaderHero userName={userName} cmsContent={cmsContent} />;
   }
 }
